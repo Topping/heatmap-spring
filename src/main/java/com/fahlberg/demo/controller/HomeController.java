@@ -7,13 +7,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HomeController {
 
-    @RequestMapping("/")
-    public String home() {
-        return "Spring up?";
-    }
+    // Reserved for Angular SPA
 
-    @RequestMapping(value = "/hello", method = RequestMethod.GET)
-    public String hello() {
-        return "HELLO WORLD!";
-    }
+//    @RequestMapping("/")
+//    public String home() {
+//        return "Spring up?";
+//    }
+//
+//    @RequestMapping(value = "/hello", method = RequestMethod.GET)
+//    public String hello() {
+//        return "HELLO WORLD!";
+//    }
 }
