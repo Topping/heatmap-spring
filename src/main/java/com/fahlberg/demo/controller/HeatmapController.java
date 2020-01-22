@@ -6,7 +6,7 @@ import com.fahlberg.demo.repository.AthleteRepository;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import javafx.util.Pair;
+
 import org.apache.http.client.utils.URIBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -83,9 +83,9 @@ public class HeatmapController {
 
     @RequestMapping(value = "heatmaps/create", method = RequestMethod.POST)
     public ResponseEntity create(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @RequestBody StringPair pair) {
-        Pair<Date, Date> range = null;
+        AbstractMap.SimpleEntry<Date, Date> range = null;
         try {
-            range = new Pair(new Date(pair.getKey()), new Date(pair.getValue()));
+            range = new AbstractMap.SimpleEntry(new Date(pair.getKey()), new Date(pair.getValue()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
@@ -261,7 +261,7 @@ public class HeatmapController {
 }
 
 // Spring isn't fond of generics, so this class now exists
-class StringPair extends Pair<String, String> {
+class StringPair extends AbstractMap.SimpleEntry<String, String> {
     public StringPair(String key, String value) {
         super(key, value);
     }
