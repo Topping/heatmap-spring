@@ -53,7 +53,8 @@ public class HeatmapController {
         try {
             athlete = athleteRepository.findById(user.id).get();
         } catch (NoSuchElementException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            athlete = new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>());
+            Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete);
         }
         return ResponseEntity.status(loginResponse.getStatusCode()).body(athlete.getHeatmaps());
     }
