@@ -1,4 +1,4 @@
-package com.fahlberg.demo.model;
+package com.fahlberg.model;
 
 import javax.persistence.*;
 import java.util.ArrayList;

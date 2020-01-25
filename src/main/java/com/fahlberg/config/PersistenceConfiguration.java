@@ -1,4 +1,4 @@
-package com.fahlberg.demo.config;
+package com.fahlberg.config;
 
 import org.springframework.boot.autoconfigure.flyway.FlywayDataSource;
 import org.springframework.boot.context.properties.ConfigurationProperties;

@@ -1,8 +1,8 @@
-package com.fahlberg.demo.controller;
+package com.fahlberg.controller;
 
-import com.fahlberg.demo.model.Athlete;
-import com.fahlberg.demo.model.Heatmap;
-import com.fahlberg.demo.repository.AthleteRepository;
+import com.fahlberg.model.Athlete;
+import com.fahlberg.model.Heatmap;
+import com.fahlberg.repository.AthleteRepository;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;

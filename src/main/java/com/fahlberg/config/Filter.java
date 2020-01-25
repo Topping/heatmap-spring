@@ -1,4 +1,4 @@
-package com.fahlberg.demo.config;
+package com.fahlberg.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

@@ -1,9 +1,4 @@
-package com.fahlberg.demo.controller;
-
-import com.fahlberg.demo.controller.HomeController;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
+package com.fahlberg.controller;
 
 class HomeControllerTest {
 
