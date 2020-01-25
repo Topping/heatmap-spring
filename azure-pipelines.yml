@@ -10,6 +10,7 @@ resources:
   pipelines:
   - pipeline: 'Fahlberg'
     source: 'Fahlberg.heatmap-ng (1)'
+    trigger: true
 
 
 variables:
