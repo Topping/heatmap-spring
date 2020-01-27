@@ -12,7 +12,10 @@ public class Heatmap {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private long heatmapID;
     private String name;
-    private Date date;
+    private Date lastModified;
+    private Date rangeStart;
+    private Date rangeEnd;
+
 
     @Lob
     @ElementCollection
@@ -22,9 +25,11 @@ public class Heatmap {
     public Heatmap() {
     }
 
-    public Heatmap(String name, Date date, List<String> polylines) {
+    public Heatmap(String name, Date lastModified, Date rangeStart, Date rangeEnd, List<String> polylines) {
         this.name = name;
-        this.date = date;
+        this.lastModified = lastModified;
+        this.rangeStart = rangeStart;
+        this.rangeEnd = rangeEnd;
         this.polylines = polylines;
     }
 
@@ -52,12 +57,28 @@ public class Heatmap {
         this.polylines = data;
     }
 
-    public Date getDate() {
-        return date;
+    public Date getLastModified() {
+        return lastModified;
     }
 
-    public void setDate(Date date) {
-        this.date = date;
+    public void setLastModified(Date lastModified) {
+        this.lastModified = lastModified;
+    }
+
+    public Date getRangeStart() {
+        return rangeStart;
+    }
+
+    public void setRangeStart(Date rangeStart) {
+        this.rangeStart = rangeStart;
+    }
+
+    public Date getRangeEnd() {
+        return rangeEnd;
+    }
+
+    public void setRangeEnd(Date rangeEnd) {
+        this.rangeEnd = rangeEnd;
     }
 
     @Override
@@ -67,12 +88,12 @@ public class Heatmap {
         Heatmap heatmap = (Heatmap) o;
         return heatmapID == heatmap.heatmapID &&
                 Objects.equals(name, heatmap.name) &&
-                Objects.equals(date, heatmap.date) &&
+                Objects.equals(lastModified, heatmap.lastModified) &&
                 Objects.equals(polylines, heatmap.polylines);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(heatmapID, name, date, polylines);
+        return Objects.hash(heatmapID, name, lastModified, polylines);
     }
 }

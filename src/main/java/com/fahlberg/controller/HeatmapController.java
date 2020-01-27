@@ -2,6 +2,8 @@ package com.fahlberg.controller;
 
 import com.fahlberg.model.Athlete;
 import com.fahlberg.model.Heatmap;
+import com.fahlberg.model.StringPair;
+import com.fahlberg.model.strava.StravaAthlete;
 import com.fahlberg.repository.AthleteRepository;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -108,6 +110,8 @@ public class HeatmapController {
         Heatmap heatmap = new Heatmap(
                 formatter.format(range.getKey()) + " ⟶ " + formatter.format(range.getValue()),
                 Calendar.getInstance().getTime(),
+                range.getKey(),
+                range.getValue(),
                 heatmapData);
 
         athlete.getHeatmaps().add(heatmap);
@@ -139,10 +143,29 @@ public class HeatmapController {
         }
     }
 
-//     TODO need to preserve startDate and endDate for this feature
-    @RequestMapping(value = "heatmaps/{id}/refresh", method = RequestMethod.POST)
+    @RequestMapping(value = "heatmaps/{id}/refresh", method = RequestMethod.GET)
     public ResponseEntity refresh(@PathVariable Integer id, @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        ResponseEntity loginResponse = checkCredentials(authorization);
+        if (loginResponse.getStatusCode().value() != 200) {
+            return loginResponse;
+        }
+        final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
+        Athlete athlete = null;
+        try {
+            athlete = athleteRepository.findById(user.id).get();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Optional<Heatmap> heatmap = athlete.getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
+        if (heatmap.isPresent()) {
+            heatmap.get().setPolylines( this.getPolylines(heatmap.get().getRangeStart(), heatmap.get().getRangeEnd(), authorization));
+            heatmap.get().setLastModified(new Date());
+            Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete);
+            return ResponseEntity.status(HttpStatus.OK).body(flushedObj);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
     }
 
     private ResponseEntity checkCredentials(String authorization) {
@@ -232,38 +255,5 @@ public class HeatmapController {
             this.body = body;
             this.headers = headers;
         }
-    }
-
-    private class StravaAthlete {
-        public int id;
-        public String username;
-        public int resource_state;
-        public String firstname;
-        public String lastname;
-        public String city;
-        public String state;
-        public String country;
-        public String sex;
-        public boolean premium;
-        public boolean summit;
-        public String created_at;
-        public String updated_at;
-        public int badge_type_id;
-        public String profile_medium;
-        public String profile;
-        public String friend = null;
-        public String follower = null;
-
-        public StravaAthlete() {
-        }
-    }
-
-
-}
-
-// Spring isn't fond of generics, so this class now exists
-class StringPair extends AbstractMap.SimpleEntry<String, String> {
-    public StringPair(String key, String value) {
-        super(key, value);
     }
 }
