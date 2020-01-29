@@ -45,7 +45,6 @@ public class HeatmapController {
 
     @RequestMapping(value = "heatmaps", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity getHeatmaps(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-
         ResponseEntity loginResponse = checkCredentials(authorization);
         if (loginResponse.getStatusCode().value() != 200) {
             return loginResponse;
@@ -179,6 +178,36 @@ public class HeatmapController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+
+    @RequestMapping(value = "samples", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity getSampleHeatmaps() {
+        Athlete athlete = null;
+        try {
+            athlete = athleteRepository.findById(0).get();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(athlete.getHeatmaps());
+    }
+
+    @RequestMapping(value = "sample/{id}", method = RequestMethod.GET)
+    public ResponseEntity getSample(@PathVariable Integer id) {
+        Athlete athlete = null;
+        try {
+            athlete = athleteRepository.findById(id).get();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        Optional<Heatmap> heatmap = athlete.getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
+        if (heatmap.isPresent()) {
+            return ResponseEntity.status(HttpStatus.OK).body(heatmap);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
 
     public List<String> getPolylines(Date startDate, Date endDate, String authorization) {
         Map<String, String> headers = new HashMap();
