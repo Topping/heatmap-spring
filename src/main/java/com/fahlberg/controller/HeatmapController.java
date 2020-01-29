@@ -191,11 +191,11 @@ public class HeatmapController {
         return ResponseEntity.status(HttpStatus.OK).body(athlete.getHeatmaps());
     }
 
-    @RequestMapping(value = "sample/{id}", method = RequestMethod.GET)
+    @RequestMapping(value = "samples/{id}", method = RequestMethod.GET)
     public ResponseEntity getSample(@PathVariable Integer id) {
         Athlete athlete = null;
         try {
-            athlete = athleteRepository.findById(id).get();
+            athlete = athleteRepository.findById(0).get();
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
