@@ -1,5 +1,7 @@
 package com.fahlberg.controller;
 
+import com.fahlberg.http.HttpMethod;
+import com.fahlberg.http.HttpResponse;
 import com.fahlberg.model.Athlete;
 import com.fahlberg.model.Heatmap;
 import com.fahlberg.model.StringPair;
@@ -34,6 +36,8 @@ public class HeatmapController {
 
     @Autowired
     private AthleteRepository athleteRepository;
+
+    private HttpMethod http = new HttpMethod();
 
     private final String API_URL = "https://www.strava.com/api/v3";
     private final Gson GSON = new Gson();
@@ -158,7 +162,7 @@ public class HeatmapController {
 
         Optional<Heatmap> heatmap = athlete.getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
         if (heatmap.isPresent()) {
-            heatmap.get().setPolylines( this.getPolylines(heatmap.get().getRangeStart(), heatmap.get().getRangeEnd(), authorization));
+            heatmap.get().setPolylines(this.getPolylines(heatmap.get().getRangeStart(), heatmap.get().getRangeEnd(), authorization));
             heatmap.get().setLastModified(new Date());
             Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete);
             return ResponseEntity.status(HttpStatus.OK).body(flushedObj);
@@ -172,7 +176,7 @@ public class HeatmapController {
         headers.put(HttpHeaders.AUTHORIZATION, authorization);
         HttpResponse response = null;
         try {
-            response = httpGet(API_URL + "/athlete/", headers);
+            response = http.get(API_URL + "/athlete/", headers);
             return ResponseEntity.status(response.statusCode).body(response.body);
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -222,7 +226,7 @@ public class HeatmapController {
                 builder.addParameter("per_page", String.valueOf(50));
                 builder.addParameter("after", String.valueOf((int) (startDate.getTime() / 1000)));
                 builder.addParameter("before", String.valueOf((int) (endDate.getTime() / 1000)));
-                response = httpGet(builder.toString(), headers); // TODO handle HTTP codes
+                response = http.get(builder.toString(), headers); // TODO handle HTTP codes
                 JsonArray jsonObject = GSON.fromJson(response.body, JsonArray.class);
                 jsonObject.forEach(item -> {
                     JsonObject obj = (JsonObject) item;
@@ -239,7 +243,7 @@ public class HeatmapController {
         List<String> polylines = heatmapComponentIDs.stream().parallel()
                 .map(id -> {
                     try {
-                        JsonObject jsonObject = GSON.fromJson(httpGet(API_URL + "/activities/" + id, headers).body, JsonObject.class); // TODO handle errors
+                        JsonObject jsonObject = GSON.fromJson(http.get(API_URL + "/activities/" + id, headers).body, JsonObject.class); // TODO handle errors
                         return jsonObject.get("map").getAsJsonObject().get("polyline").getAsString();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -250,39 +254,5 @@ public class HeatmapController {
         return polylines;
     }
 
-    private HttpResponse httpGet(String url, Map<String, String> headers) throws IOException {
-        StringBuilder result = new StringBuilder();
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        connection.setRequestMethod("GET");
-        headers.entrySet().forEach(header -> {
-            connection.setRequestProperty(header.getKey(), header.getValue());
-        });
 
-        InputStream input;
-        try {
-            input = connection.getInputStream();
-        } catch (IOException e) {
-            return new HttpResponse(connection.getResponseCode(), connection.getResponseMessage(), connection.getHeaderFields());
-        }
-
-        BufferedReader rd = new BufferedReader(new InputStreamReader(input));
-        String line;
-        while ((line = rd.readLine()) != null) {
-            result.append(line);
-        }
-        rd.close();
-        return new HttpResponse(connection.getResponseCode(), result.toString(), connection.getHeaderFields());
-    }
-
-    private class HttpResponse {
-        public int statusCode;
-        public String body;
-        public Map<String, List<String>> headers;
-
-        public HttpResponse(int statusCode, String body, Map<String, List<String>> headers) {
-            this.statusCode = statusCode;
-            this.body = body;
-            this.headers = headers;
-        }
-    }
 }
