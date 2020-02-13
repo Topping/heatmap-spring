@@ -10,7 +10,6 @@ import com.fahlberg.repository.AthleteRepository;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
 import org.apache.http.client.utils.URIBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
@@ -19,13 +18,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -85,7 +79,6 @@ public class HeatmapController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
-
 
     @RequestMapping(value = "heatmaps/create", method = RequestMethod.POST)
     public ResponseEntity create(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @RequestBody StringPair pair) {
@@ -219,7 +212,7 @@ public class HeatmapController {
         List<String> heatmapComponentIDs = new ArrayList<>();
         try {
             int index = 0;
-            HttpResponse response = null;
+            HttpResponse response;
             do {
                 URIBuilder builder = new URIBuilder(API_URL + "/athlete/activities");
                 builder.addParameter("page", String.valueOf(++index));
@@ -240,7 +233,7 @@ public class HeatmapController {
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
-        List<String> polylines = heatmapComponentIDs.stream().parallel()
+        return heatmapComponentIDs.stream().parallel()
                 .map(id -> {
                     try {
                         JsonObject jsonObject = GSON.fromJson(http.get(API_URL + "/activities/" + id, headers).body, JsonObject.class); // TODO handle errors
@@ -251,7 +244,6 @@ public class HeatmapController {
                     }
                 })
                 .collect(Collectors.toList());
-        return polylines;
     }
 
 

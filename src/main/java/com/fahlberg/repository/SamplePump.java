@@ -3,17 +3,12 @@ package com.fahlberg.repository;
 import com.fahlberg.model.Athlete;
 import com.fahlberg.model.Heatmap;
 import com.google.gson.Gson;
-import com.google.gson.stream.JsonReader;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
-import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
-import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 
