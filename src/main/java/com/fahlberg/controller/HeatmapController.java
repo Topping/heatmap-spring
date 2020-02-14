@@ -1,7 +1,5 @@
 package com.fahlberg.controller;
 
-import com.fahlberg.http.HttpMethod;
-import com.fahlberg.http.HttpResponse;
 import com.fahlberg.model.Athlete;
 import com.fahlberg.model.Heatmap;
 import com.fahlberg.model.StringPair;
@@ -10,7 +8,13 @@ import com.fahlberg.repository.AthleteRepository;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,7 +35,8 @@ public class HeatmapController {
     @Autowired
     private AthleteRepository athleteRepository;
 
-    private HttpMethod http = new HttpMethod();
+    private HttpClient http = HttpClientBuilder.create().build();
+    ;
 
     private final String API_URL = "https://www.strava.com/api/v3";
     private final Gson GSON = new Gson();
@@ -42,7 +47,7 @@ public class HeatmapController {
     }
 
     @RequestMapping(value = "heatmaps", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity getHeatmaps(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+    public ResponseEntity<List<Heatmap>> getHeatmaps(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
         ResponseEntity loginResponse = checkCredentials(authorization);
         if (loginResponse.getStatusCode().value() != 200) {
             return loginResponse;
@@ -115,8 +120,8 @@ public class HeatmapController {
         return ResponseEntity.status(HttpStatus.CREATED).body(flushedObj); // TODO 201 CREATED link heatmaps/{id}
     }
 
-    @RequestMapping(value = "heatmaps/{id}/delete", method = RequestMethod.DELETE)
-    public ResponseEntity delete(@PathVariable Integer id, @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+    @RequestMapping(value = "heatmaps/{id}", method = RequestMethod.DELETE)
+    public ResponseEntity<Athlete> delete(@PathVariable Integer id, @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
         ResponseEntity loginResponse = checkCredentials(authorization);
         if (loginResponse.getStatusCode().value() != 200) {
             return loginResponse;
@@ -140,7 +145,7 @@ public class HeatmapController {
     }
 
     @RequestMapping(value = "heatmaps/{id}/refresh", method = RequestMethod.GET)
-    public ResponseEntity refresh(@PathVariable Integer id, @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+    public ResponseEntity<Athlete> refresh(@PathVariable Integer id, @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
         ResponseEntity loginResponse = checkCredentials(authorization);
         if (loginResponse.getStatusCode().value() != 200) {
             return loginResponse;
@@ -165,12 +170,13 @@ public class HeatmapController {
     }
 
     private ResponseEntity checkCredentials(String authorization) {
-        Map<String, String> headers = new HashMap();
-        headers.put(HttpHeaders.AUTHORIZATION, authorization);
-        HttpResponse response = null;
         try {
-            response = http.get(API_URL + "/athlete/", headers);
-            return ResponseEntity.status(response.statusCode).body(response.body);
+            HttpUriRequest request = RequestBuilder.get()
+                    .setUri(API_URL + "/athlete/")
+                    .setHeader(HttpHeaders.AUTHORIZATION, authorization)
+                    .build();
+            HttpResponse response = http.execute(request);
+            return ResponseEntity.status(response.getStatusLine().getStatusCode()).body(EntityUtils.toString(response.getEntity()));
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -178,7 +184,7 @@ public class HeatmapController {
 
 
     @RequestMapping(value = "samples", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity getSampleHeatmaps() {
+    public ResponseEntity<List<Heatmap>> getSampleHeatmaps() {
         Athlete athlete = null;
         try {
             athlete = athleteRepository.findById(0).get();
@@ -189,7 +195,7 @@ public class HeatmapController {
     }
 
     @RequestMapping(value = "samples/{id}", method = RequestMethod.GET)
-    public ResponseEntity getSample(@PathVariable Integer id) {
+    public ResponseEntity<Heatmap> getSample(@PathVariable Integer id) {
         Athlete athlete = null;
         try {
             athlete = athleteRepository.findById(0).get();
@@ -199,7 +205,7 @@ public class HeatmapController {
 
         Optional<Heatmap> heatmap = athlete.getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
         if (heatmap.isPresent()) {
-            return ResponseEntity.status(HttpStatus.OK).body(heatmap);
+            return ResponseEntity.status(HttpStatus.OK).body(heatmap.get());
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
@@ -207,8 +213,6 @@ public class HeatmapController {
 
 
     public List<String> getPolylines(Date startDate, Date endDate, String authorization) {
-        Map<String, String> headers = new HashMap();
-        headers.put(HttpHeaders.AUTHORIZATION, authorization);
         List<String> heatmapComponentIDs = new ArrayList<>();
         try {
             int index = 0;
@@ -219,15 +223,20 @@ public class HeatmapController {
                 builder.addParameter("per_page", String.valueOf(50));
                 builder.addParameter("after", String.valueOf((int) (startDate.getTime() / 1000)));
                 builder.addParameter("before", String.valueOf((int) (endDate.getTime() / 1000)));
-                response = http.get(builder.toString(), headers); // TODO handle HTTP codes
-                JsonArray jsonObject = GSON.fromJson(response.body, JsonArray.class);
+
+                HttpUriRequest request = RequestBuilder.get()
+                        .setUri(builder.toString())
+                        .setHeader(HttpHeaders.AUTHORIZATION, authorization)
+                        .build();
+                response = http.execute(request);
+                JsonArray jsonObject = GSON.fromJson(EntityUtils.toString(response.getEntity()), JsonArray.class);
                 jsonObject.forEach(item -> {
                     JsonObject obj = (JsonObject) item;
                     if (!obj.get("map").getAsJsonObject().get("summary_polyline").isJsonNull()) {
                         heatmapComponentIDs.add(obj.get("id").toString());
                     }
                 });
-            } while (response.statusCode == 200 && !response.body.equals("[]"));
+            } while (response.getStatusLine().getStatusCode() == 200 && !EntityUtils.toString(response.getEntity()).equals("[]"));
         } catch (IOException e) {
             e.printStackTrace();
         } catch (URISyntaxException e) {
@@ -236,7 +245,14 @@ public class HeatmapController {
         return heatmapComponentIDs.stream().parallel()
                 .map(id -> {
                     try {
-                        JsonObject jsonObject = GSON.fromJson(http.get(API_URL + "/activities/" + id, headers).body, JsonObject.class); // TODO handle errors
+                        HttpUriRequest request = RequestBuilder.get()
+                                .setUri(API_URL + "/activities/" + id)
+                                .setHeader(HttpHeaders.AUTHORIZATION, authorization)
+                                .build();
+                        HttpResponse response = http.execute(request);
+
+
+                        JsonObject jsonObject = GSON.fromJson(EntityUtils.toString(response.getEntity()), JsonObject.class); // TODO handle errors
                         return jsonObject.get("map").getAsJsonObject().get("polyline").getAsString();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -245,6 +261,4 @@ public class HeatmapController {
                 })
                 .collect(Collectors.toList());
     }
-
-
 }
