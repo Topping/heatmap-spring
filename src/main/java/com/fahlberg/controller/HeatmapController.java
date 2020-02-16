@@ -36,7 +36,6 @@ public class HeatmapController {
     private AthleteRepository athleteRepository;
 
     private HttpClient http = HttpClientBuilder.create().build();
-    ;
 
     private final String API_URL = "https://www.strava.com/api/v3";
     private final Gson GSON = new Gson();
@@ -53,14 +52,11 @@ public class HeatmapController {
             return loginResponse;
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
-        Athlete athlete = null;
-        try {
-            athlete = athleteRepository.findById(user.id).get();
-        } catch (NoSuchElementException e) {
-            athlete = new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>());
-            Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete);
+        Optional<Athlete> athlete = athleteRepository.findById(user.id);
+        if(athlete.isEmpty()) {
+            this.athleteRepository.saveAndFlush(new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>()));
         }
-        return ResponseEntity.status(loginResponse.getStatusCode()).body(athlete.getHeatmaps());
+        return ResponseEntity.status(loginResponse.getStatusCode()).body(athlete.get().getHeatmaps());
     }
 
     @RequestMapping(value = "heatmaps/{id}", method = RequestMethod.GET)
@@ -70,14 +66,11 @@ public class HeatmapController {
             return loginResponse;
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
-        Athlete athlete = null;
-        try {
-            athlete = athleteRepository.findById(user.id).get();
-        } catch (NoSuchElementException e) {
+        Optional<Athlete> athlete = athleteRepository.findById(user.id);
+        if(athlete.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-
-        Optional<Heatmap> heatmap = athlete.getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
+        Optional<Heatmap> heatmap = athlete.get().getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
         if (heatmap.isPresent()) {
             return ResponseEntity.status(HttpStatus.OK).body(heatmap);
         } else {
@@ -87,10 +80,11 @@ public class HeatmapController {
 
     @RequestMapping(value = "heatmaps/create", method = RequestMethod.POST)
     public ResponseEntity create(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @RequestBody StringPair pair) {
-        AbstractMap.SimpleEntry<Date, Date> range = null;
+        AbstractMap.SimpleEntry<Date, Date> range = null; // TODO Java.Time instead of depricated utilDate
         try {
             range = new AbstractMap.SimpleEntry(new Date(pair.getKey()), new Date(pair.getValue()));
         } catch (IllegalArgumentException e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
@@ -99,12 +93,10 @@ public class HeatmapController {
             return loginResponse;
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
-        Athlete athlete = null;
-        try {
-            athlete = athleteRepository.findById(user.id).get();
-        } catch (NoSuchElementException e) {
-            athlete = new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>());
-        }
+        Optional<Athlete> athlete = athleteRepository.findById(user.id);
+        athlete.ifPresentOrElse(x -> {}, () -> {
+            this.athleteRepository.saveAndFlush(new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>()));
+        });
 
         List<String> heatmapData = this.getPolylines(range.getKey(), range.getValue(), authorization);
         final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
@@ -115,8 +107,8 @@ public class HeatmapController {
                 range.getValue(),
                 heatmapData);
 
-        athlete.getHeatmaps().add(heatmap);
-        Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete);
+        athlete.get().getHeatmaps().add(heatmap);
+        Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete.get());
         return ResponseEntity.status(HttpStatus.CREATED).body(flushedObj); // TODO 201 CREATED link heatmaps/{id}
     }
 
@@ -127,17 +119,15 @@ public class HeatmapController {
             return loginResponse;
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
-        Athlete athlete = null;
-        try {
-            athlete = athleteRepository.findById(user.id).get();
-        } catch (NoSuchElementException e) {
+        Optional<Athlete> athlete = athleteRepository.findById(user.id);
+        if(athlete.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        Optional<Heatmap> heatmap = athlete.getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
+        Optional<Heatmap> heatmap = athlete.get().getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
         if (heatmap.isPresent()) {
-            athlete.getHeatmaps().removeIf(e -> e.getHeatmapID() == id);
-            Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete);
+            athlete.get().getHeatmaps().removeIf(ath -> ath.getHeatmapID() == id);
+            Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete.get());
             return ResponseEntity.status(HttpStatus.OK).body(flushedObj);
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -151,18 +141,16 @@ public class HeatmapController {
             return loginResponse;
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
-        Athlete athlete = null;
-        try {
-            athlete = athleteRepository.findById(user.id).get();
-        } catch (NoSuchElementException e) {
+        Optional<Athlete> athlete = athleteRepository.findById(user.id);
+        if(athlete.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
-        Optional<Heatmap> heatmap = athlete.getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
+        Optional<Heatmap> heatmap = athlete.get().getHeatmaps().stream().filter(ath -> ath.getHeatmapID() == id).findFirst();
         if (heatmap.isPresent()) {
             heatmap.get().setPolylines(this.getPolylines(heatmap.get().getRangeStart(), heatmap.get().getRangeEnd(), authorization));
             heatmap.get().setLastModified(new Date());
-            Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete);
+            Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete.get());
             return ResponseEntity.status(HttpStatus.OK).body(flushedObj);
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
@@ -216,7 +204,8 @@ public class HeatmapController {
         List<String> heatmapComponentIDs = new ArrayList<>();
         try {
             int index = 0;
-            HttpResponse response;
+            int httpCode;
+            String httpBody;
             do {
                 URIBuilder builder = new URIBuilder(API_URL + "/athlete/activities");
                 builder.addParameter("page", String.valueOf(++index));
@@ -228,15 +217,18 @@ public class HeatmapController {
                         .setUri(builder.toString())
                         .setHeader(HttpHeaders.AUTHORIZATION, authorization)
                         .build();
-                response = http.execute(request);
-                JsonArray jsonObject = GSON.fromJson(EntityUtils.toString(response.getEntity()), JsonArray.class);
+                HttpResponse httpResponse = http.execute(request);
+                httpBody = EntityUtils.toString(httpResponse.getEntity());
+                httpCode = httpResponse.getStatusLine().getStatusCode();
+
+                JsonArray jsonObject = GSON.fromJson(httpBody, JsonArray.class);
                 jsonObject.forEach(item -> {
                     JsonObject obj = (JsonObject) item;
                     if (!obj.get("map").getAsJsonObject().get("summary_polyline").isJsonNull()) {
                         heatmapComponentIDs.add(obj.get("id").toString());
                     }
                 });
-            } while (response.getStatusLine().getStatusCode() == 200 && !EntityUtils.toString(response.getEntity()).equals("[]"));
+            } while (httpCode == 200 && !httpBody.equals("[]"));
         } catch (IOException e) {
             e.printStackTrace();
         } catch (URISyntaxException e) {
@@ -250,8 +242,6 @@ public class HeatmapController {
                                 .setHeader(HttpHeaders.AUTHORIZATION, authorization)
                                 .build();
                         HttpResponse response = http.execute(request);
-
-
                         JsonObject jsonObject = GSON.fromJson(EntityUtils.toString(response.getEntity()), JsonObject.class); // TODO handle errors
                         return jsonObject.get("map").getAsJsonObject().get("polyline").getAsString();
                     } catch (IOException e) {
