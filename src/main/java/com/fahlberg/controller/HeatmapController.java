@@ -1,8 +1,8 @@
 package com.fahlberg.controller;
 
 import com.fahlberg.model.Athlete;
+import com.fahlberg.model.CreateHeatmapRequest;
 import com.fahlberg.model.Heatmap;
-import com.fahlberg.model.StringPair;
 import com.fahlberg.model.strava.StravaAthlete;
 import com.fahlberg.repository.AthleteRepository;
 import com.google.gson.Gson;
@@ -53,7 +53,7 @@ public class HeatmapController {
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
         Optional<Athlete> athlete = athleteRepository.findById(user.id);
-        if(athlete.isEmpty()) {
+        if(!athlete.isPresent()) {
             this.athleteRepository.saveAndFlush(new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>()));
         }
         return ResponseEntity.status(loginResponse.getStatusCode()).body(athlete.get().getHeatmaps());
@@ -67,7 +67,7 @@ public class HeatmapController {
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
         Optional<Athlete> athlete = athleteRepository.findById(user.id);
-        if(athlete.isEmpty()) {
+        if(!athlete.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
         Optional<Heatmap> heatmap = athlete.get().getHeatmaps().stream().filter(val -> val.getHeatmapID() == id).findFirst();
@@ -79,10 +79,10 @@ public class HeatmapController {
     }
 
     @RequestMapping(value = "heatmaps/create", method = RequestMethod.POST)
-    public ResponseEntity create(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @RequestBody StringPair pair) {
+    public ResponseEntity create(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @RequestBody CreateHeatmapRequest request) {
         AbstractMap.SimpleEntry<Date, Date> range = null; // TODO Java.Time instead of depricated utilDate
         try {
-            range = new AbstractMap.SimpleEntry(new Date(pair.getKey()), new Date(pair.getValue()));
+            range = new AbstractMap.SimpleEntry(new Date(request.getFromDateUTC()), new Date(request.getToDateUTC()));
         } catch (IllegalArgumentException e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
@@ -94,10 +94,9 @@ public class HeatmapController {
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
         Optional<Athlete> athlete = athleteRepository.findById(user.id);
-        athlete.ifPresentOrElse(x -> {}, () -> {
+        if(!athlete.isPresent()) {
             this.athleteRepository.saveAndFlush(new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>()));
-        });
-
+        }
         List<String> heatmapData = this.getPolylines(range.getKey(), range.getValue(), authorization);
         final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
         Heatmap heatmap = new Heatmap(
@@ -120,7 +119,7 @@ public class HeatmapController {
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
         Optional<Athlete> athlete = athleteRepository.findById(user.id);
-        if(athlete.isEmpty()) {
+        if(!athlete.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
@@ -142,7 +141,7 @@ public class HeatmapController {
         }
         final StravaAthlete user = GSON.fromJson(loginResponse.getBody().toString(), StravaAthlete.class);
         Optional<Athlete> athlete = athleteRepository.findById(user.id);
-        if(athlete.isEmpty()) {
+        if(!athlete.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
