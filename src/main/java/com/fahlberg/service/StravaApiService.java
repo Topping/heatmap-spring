@@ -48,55 +48,65 @@ public class StravaApiService {
         }
     }
 
-    public List<String> getPolylines(Date startDate, Date endDate, String authorization) {
-        List<String> heatmapComponentIDs = new ArrayList<>();
+    public List<String> getPolylines(Date startDate, Date endDate, String authorization) throws IOException {
+        List<String> activityIds = new ArrayList<>();
         try {
             int index = 0;
-            int httpCode;
-            String httpBody;
+            List<String> activityPageIds = new ArrayList<>();
             do {
-                URIBuilder builder = new URIBuilder(API_URL + "/athlete/activities");
-                builder.addParameter("page", String.valueOf(++index));
-                builder.addParameter("per_page", String.valueOf(50));
-                builder.addParameter("after", String.valueOf((int) (startDate.getTime() / 1000)));
-                builder.addParameter("before", String.valueOf((int) (endDate.getTime() / 1000)));
-
-                HttpUriRequest request = RequestBuilder.get()
-                        .setUri(builder.toString())
-                        .setHeader(HttpHeaders.AUTHORIZATION, authorization)
-                        .build();
-                HttpResponse httpResponse = http.execute(request);
-                httpBody = EntityUtils.toString(httpResponse.getEntity());
-                httpCode = httpResponse.getStatusLine().getStatusCode();
-
-                JsonArray jsonObject = GSON.fromJson(httpBody, JsonArray.class);
-                jsonObject.forEach(item -> {
-                    JsonObject obj = (JsonObject) item;
-                    if (!obj.get("map").getAsJsonObject().get("summary_polyline").isJsonNull()) {
-                        heatmapComponentIDs.add(obj.get("id").toString());
-                    }
-                });
-            } while (httpCode == 200 && !httpBody.equals("[]"));
-        } catch (IOException e) {
-            e.printStackTrace();
+                activityPageIds = this.getActivityIds(++index, 50, startDate, endDate, authorization);
+                activityIds.addAll(activityPageIds);
+            } while (!activityPageIds.isEmpty());
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
-        return heatmapComponentIDs.stream().parallel()
+        return activityIds.stream().parallel()
                 .map(id -> {
                     try {
-                        HttpUriRequest request = RequestBuilder.get()
-                                .setUri(API_URL + "/activities/" + id)
-                                .setHeader(HttpHeaders.AUTHORIZATION, authorization)
-                                .build();
-                        HttpResponse response = http.execute(request);
-                        JsonObject jsonObject = GSON.fromJson(EntityUtils.toString(response.getEntity()), JsonObject.class); // TODO handle errors
-                        return jsonObject.get("map").getAsJsonObject().get("polyline").getAsString();
+                        return this.getPolylinesById(id, authorization);
                     } catch (IOException e) {
-                        e.printStackTrace();
-                        return null;
+                        throw new RuntimeException(e);
                     }
                 })
                 .collect(Collectors.toList());
+    }
+
+    private List<String> getActivityIds(int page, int perPage, Date startDate, Date endDate, String authorization) throws URISyntaxException, IOException {
+        URIBuilder uriBuilder = new URIBuilder(API_URL + "/athlete/activities")
+                .addParameter("page", String.valueOf(page))
+                .addParameter("per_page", String.valueOf(perPage))
+                .addParameter("after", String.valueOf((int) (startDate.getTime() / 1000)))
+                .addParameter("before", String.valueOf((int) (endDate.getTime() / 1000)));
+
+        HttpUriRequest request = RequestBuilder.get()
+                .setUri(uriBuilder.toString())
+                .setHeader(HttpHeaders.AUTHORIZATION, authorization)
+                .build();
+        HttpResponse httpResponse = http.execute(request);
+        String httpBody = EntityUtils.toString(httpResponse.getEntity());
+        int httpCode = httpResponse.getStatusLine().getStatusCode();
+        if (httpCode != 200) {
+            throw new IOException(); // TODO varies, 401
+        }
+
+        JsonArray jsonObject = GSON.fromJson(httpBody, JsonArray.class);
+        List<String> activityIds = new ArrayList<>();
+        jsonObject.forEach(activityJson -> {
+            JsonObject activityJsonObj = (JsonObject) activityJson;
+            if (!activityJsonObj.get("map").getAsJsonObject().get("summary_polyline").isJsonNull()) {
+                activityIds.add(activityJsonObj.get("id").toString());
+            }
+        });
+        return activityIds;
+    }
+
+    private String getPolylinesById(String id, String authorization) throws IOException {
+        HttpUriRequest request = RequestBuilder.get()
+                .setUri(API_URL + "/activities/" + id)
+                .setHeader(HttpHeaders.AUTHORIZATION, authorization)
+                .build();
+        HttpResponse response = http.execute(request);
+        JsonObject jsonObject = GSON.fromJson(EntityUtils.toString(response.getEntity()), JsonObject.class);
+        return jsonObject.get("map").getAsJsonObject().get("polyline").getAsString();
     }
 }

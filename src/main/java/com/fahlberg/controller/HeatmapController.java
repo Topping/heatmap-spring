@@ -90,7 +90,7 @@ public class HeatmapController {
 
     @RequestMapping(value = "heatmaps/create", method = RequestMethod.POST)
     public ResponseEntity create(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @RequestBody CreateHeatmapRequest request) {
-        AbstractMap.SimpleEntry<Date, Date> range = null; // TODO Java.Time instead of depricated utilDate
+        AbstractMap.SimpleEntry<Date, Date> range;
         try {
             range = new AbstractMap.SimpleEntry(new Date(request.getFromDateUTC()), new Date(request.getToDateUTC()));
         } catch (IllegalArgumentException e) {
@@ -113,7 +113,13 @@ public class HeatmapController {
         if (!athlete.isPresent()) {
             this.athleteRepository.saveAndFlush(new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>()));
         }
-        List<String> heatmapData = apiService.getPolylines(range.getKey(), range.getValue(), authorization);
+        List<String> heatmapData = null;
+        try {
+            heatmapData = apiService.getPolylines(range.getKey(), range.getValue(), authorization);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
         final SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
         Heatmap heatmap = new Heatmap(
                 formatter.format(range.getKey()) + " ⟶ " + formatter.format(range.getValue()),
@@ -173,7 +179,12 @@ public class HeatmapController {
 
         Optional<Heatmap> heatmap = athlete.get().getHeatmaps().stream().filter(ath -> ath.getHeatmapID() == id).findFirst();
         if (heatmap.isPresent()) {
-            heatmap.get().setPolylines(apiService.getPolylines(heatmap.get().getRangeStart(), heatmap.get().getRangeEnd(), authorization));
+            try {
+                heatmap.get().setPolylines(apiService.getPolylines(heatmap.get().getRangeStart(), heatmap.get().getRangeEnd(), authorization));
+            } catch (IOException e) {
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
             heatmap.get().setLastModified(new Date());
             Athlete flushedObj = this.athleteRepository.saveAndFlush(athlete.get());
             return ResponseEntity.status(HttpStatus.OK).body(flushedObj);
