@@ -5,6 +5,7 @@ import com.fahlberg.model.CreateHeatmapRequest;
 import com.fahlberg.model.Heatmap;
 import com.fahlberg.model.strava.StravaAthlete;
 import com.fahlberg.repository.AthleteRepository;
+import com.fahlberg.security.SecurityUtils;
 import com.fahlberg.service.StravaApiService;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -21,6 +22,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -44,19 +47,10 @@ public class HeatmapController {
         return "Heatmap works?";
     }
 
+    @PreAuthorize("isAuthenticated()")
     @RequestMapping(value = "heatmaps", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<Heatmap>> getHeatmaps(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        StravaAthlete user;
-        try {
-            user = apiService.getCurrentAthlete(authorization);
-            if (user == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-
+        StravaAthlete user = SecurityUtils.getAthleteDetails();
         Optional<Athlete> athlete = athleteRepository.findById(user.id);
         if (!athlete.isPresent()) {
             this.athleteRepository.saveAndFlush(new Athlete(user.id, user.firstname, user.lastname, new ArrayList<Heatmap>()));

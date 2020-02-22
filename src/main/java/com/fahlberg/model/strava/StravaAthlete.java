@@ -2,7 +2,7 @@ package com.fahlberg.model.strava;
 
 public class StravaAthlete {
     public int id;
-    public String username;
+    private String username;
     public int resource_state;
     public String firstname;
     public String lastname;

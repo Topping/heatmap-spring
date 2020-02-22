@@ -1,6 +1,7 @@
 package com.fahlberg.service;
 
 import com.fahlberg.model.strava.StravaAthlete;
+import com.fahlberg.security.SecurityUtils;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -12,6 +13,7 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -41,10 +43,9 @@ public class StravaApiService {
 
         int responseCode = response.getStatusLine().getStatusCode();
         if (responseCode == 200) {
-            final StravaAthlete user = GSON.fromJson(EntityUtils.toString(response.getEntity()), StravaAthlete.class);
-            return user;
+            return GSON.fromJson(EntityUtils.toString(response.getEntity()), StravaAthlete.class);
         } else {
-            return null; // TODO handle 401 better
+            return null;
         }
     }
 
